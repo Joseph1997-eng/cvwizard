@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Briefcase, GraduationCap, Wrench, Download, 
-  Sparkles, Trash2, Plus, ChevronLeft, ChevronRight, Eye, Printer, Edit3, Layers, Upload, X
+  Sparkles, Trash2, Plus, ChevronLeft, ChevronRight, Eye, Printer, Edit3, Layers, Upload, X, Import
 } from 'lucide-react';
 import { ResumeData, WizardStep, Experience, Education, Skill, CustomSection, CustomItem, Theme } from './types';
 import { Preview } from './components/Preview';
 import { Button } from './components/Button';
 import { InputGroup } from './components/InputGroup';
 import { ThemeEditor } from './components/ThemeEditor';
-import { generateSummary, enhanceExperienceDescription, suggestSkills } from './services/geminiService';
+import { ImportModal } from './components/ImportModal';
+import { generateSummary, enhanceExperienceDescription, suggestSkills, parseResumeContent } from './services/geminiService';
 import { useDebounce } from './hooks/useDebounce';
 
 const App = () => {
   const [step, setStep] = useState<WizardStep>(WizardStep.PERSONAL);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
   
   // Ref for auto-scrolling to new items
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -239,6 +241,46 @@ const App = () => {
     setLoadingAI(null);
   };
 
+  const handleImport = async (file: File | null, text: string | null) => {
+    setLoadingAI('import');
+    try {
+        let content = '';
+        let mimeType = 'text/plain';
+
+        if (file) {
+             const reader = new FileReader();
+             content = await new Promise((resolve) => {
+                reader.onloadend = () => {
+                   const base64String = (reader.result as string).split(',')[1];
+                   resolve(base64String);
+                };
+                reader.readAsDataURL(file);
+             });
+             mimeType = file.type;
+        } else if (text) {
+            content = text;
+        }
+
+        const parsedData = await parseResumeContent(content, mimeType);
+        
+        // Merge Parsed Data
+        setResumeData(prev => ({
+            ...prev,
+            personalInfo: { ...prev.personalInfo, ...parsedData.personalInfo },
+            experience: parsedData.experience || [],
+            education: parsedData.education || [],
+            skills: parsedData.skills || [],
+        }));
+        
+        setShowImportModal(false);
+    } catch (error) {
+        alert("Failed to parse resume. Please try again or enter details manually.");
+        console.error(error);
+    } finally {
+        setLoadingAI(null);
+    }
+  };
+
   const handlePrint = () => {
     // Small delay to ensure render is complete before print
     setTimeout(() => {
@@ -277,7 +319,19 @@ const App = () => {
       case WizardStep.PERSONAL:
         return (
           <div className="space-y-6 animate-fadeIn">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Let's start with the basics</h2>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+                <div>
+                   <h2 className="text-2xl font-bold text-gray-800">Let's start with the basics</h2>
+                   <p className="text-gray-500 text-sm mt-1">Fill in your details or import from an existing resume.</p>
+                </div>
+                <Button 
+                   onClick={() => setShowImportModal(true)} 
+                   variant="ai" 
+                   icon={<Import size={16} />}
+                >
+                    Import Resume / LinkedIn
+                </Button>
+            </div>
             
             {/* Profile Image Upload */}
             <div className="flex items-center space-x-6 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -577,6 +631,13 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
+      <ImportModal 
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImport}
+        isLoading={loadingAI === 'import'}
+      />
+      
       {/* Navbar */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-30 no-print">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
