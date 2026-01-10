@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ResumeAI - Intelligent CV Builder</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lato:wght@300;400;700&family=Merriweather:wght@300;400;700&family=Open+Sans:wght@300;400;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -13,51 +14,49 @@
         font-family: 'Inter', sans-serif;
       }
       
-      /* Print Styling */
+      /* Robust Print Styling */
       @media print {
         @page {
           margin: 0;
-          size: A4;
+          size: auto;
         }
         
-        body {
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
+        /* Reset document structure for printing */
+        html, body, #root, main {
+          height: auto !important;
+          overflow: visible !important;
           background: white !important;
         }
 
-        /* Hide elements marked with no-print */
-        .no-print {
-          display: none !important;
+        /* Hide everything by default */
+        body * {
+          visibility: hidden;
         }
 
-        /* Ensure the preview container is visible and positioned correctly */
-        .print-layout {
-          display: block !important;
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          margin: 0;
-          padding: 0;
-          visibility: visible !important;
+        /* Only show the resume preview and its children */
+        #resume-preview, #resume-preview * {
+          visibility: visible;
         }
-        
-        /* Reset any potential hiding from parents */
-        #root, #root > div, main {
-          display: block !important;
-          visibility: visible !important;
-          height: auto !important;
-          overflow: visible !important;
-        }
-        
-        /* Ensure the preview component itself fills the page correctly */
+
+        /* Position the resume at top-left of the page */
         #resume-preview {
-          margin: 0 !important;
-          box-shadow: none !important;
-          min-height: 100vh !important;
+          position: absolute;
+          left: 0;
+          top: 0;
           width: 100% !important;
-          overflow: visible !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          transform: none !important;
+          box-shadow: none !important;
+          
+          /* Ensure background colors print */
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        /* Ensure no other elements interfere */
+        nav, .no-print, button, .wizard-col {
+          display: none !important;
         }
       }
     </style>

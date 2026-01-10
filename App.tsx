@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Briefcase, GraduationCap, Wrench, Download, 
-  Sparkles, Trash2, Plus, ChevronLeft, ChevronRight, Eye, Printer, Edit3, Layers, Upload, X, Import
+  Sparkles, Trash2, Plus, ChevronLeft, ChevronRight, Eye, Printer, Edit3, Layers, Upload, X, Import, FileText
 } from 'lucide-react';
 import { ResumeData, WizardStep, Experience, Education, Skill, CustomSection, CustomItem, Theme } from './types';
 import { Preview } from './components/Preview';
@@ -12,11 +12,14 @@ import { ImportModal } from './components/ImportModal';
 import { generateSummary, enhanceExperienceDescription, suggestSkills, parseResumeContent } from './services/geminiService';
 import { useDebounce } from './hooks/useDebounce';
 
+declare const html2pdf: any;
+
 const App = () => {
   const [step, setStep] = useState<WizardStep>(WizardStep.PERSONAL);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   
   // Ref for auto-scrolling to new items
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -282,10 +285,68 @@ const App = () => {
   };
 
   const handlePrint = () => {
-    // Small delay to ensure render is complete before print
     setTimeout(() => {
       window.print();
     }, 100);
+  };
+
+  const handleDownloadPDF = async () => {
+    setIsExporting(true);
+    const element = document.getElementById('resume-preview');
+    if (!element) return;
+
+    // Use html2pdf.js for client-side generation
+    if (typeof html2pdf !== 'undefined') {
+        const opt = {
+            margin: 0,
+            filename: `${resumeData.personalInfo.fullName || 'Resume'}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        try {
+            await html2pdf().set(opt).from(element).save();
+        } catch (e) {
+            console.error("PDF Export failed", e);
+            alert("Download failed. Falling back to print mode.");
+            handlePrint();
+        }
+    } else {
+        // Fallback if library missing
+        handlePrint();
+    }
+    setIsExporting(false);
+  };
+
+  const handleExportTXT = () => {
+    const { personalInfo, experience, education, skills } = resumeData;
+    let text = `NAME: ${personalInfo.fullName}\n`;
+    text += `TITLE: ${personalInfo.jobTitle}\n`;
+    text += `EMAIL: ${personalInfo.email}\n`;
+    text += `PHONE: ${personalInfo.phone}\n`;
+    text += `LINKEDIN: ${personalInfo.linkedin}\n\n`;
+    
+    text += `SUMMARY:\n${personalInfo.summary}\n\n`;
+    
+    text += `EXPERIENCE:\n`;
+    experience.forEach(exp => {
+      text += `${exp.position} at ${exp.company} (${exp.startDate} - ${exp.current ? 'Present' : exp.endDate})\n`;
+      text += `${exp.description}\n\n`;
+    });
+    
+    text += `EDUCATION:\n`;
+    education.forEach(edu => {
+      text += `${edu.degree} - ${edu.institution} (${edu.startDate} - ${edu.endDate})\n`;
+    });
+    
+    text += `\nSKILLS:\n${skills.map(s => s.name).join(', ')}`;
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${personalInfo.fullName || 'Resume'}.txt`;
+    link.click();
   };
 
   const Steps = () => (
@@ -469,6 +530,7 @@ const App = () => {
           </div>
         );
 
+      // ... (Education, Skills, Custom Sections same as before) ...
       case WizardStep.EDUCATION:
         return (
           <div className="space-y-6 animate-fadeIn">
@@ -608,18 +670,44 @@ const App = () => {
 
       case WizardStep.FINALIZE:
         return (
-          <div className="text-center space-y-6 py-10 animate-fadeIn">
-            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="text-center space-y-8 py-10 animate-fadeIn">
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
               <Download size={40} />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">Your Resume is Ready!</h2>
-            <p className="text-gray-600 max-w-md mx-auto">
-              Review your document in the preview panel. If everything looks good, download your professional resume.
-            </p>
-            <div className="flex justify-center gap-4">
-              <Button onClick={handlePrint} variant="primary" className="px-8 py-3 text-lg shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all">
-                 Download / Print PDF
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Resume is Ready!</h2>
+              <p className="text-gray-600 max-w-md mx-auto">
+                Review your document in the preview panel. You can download it as a PDF or export as text for ATS checking.
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-2xl mx-auto">
+              <Button 
+                onClick={handleDownloadPDF} 
+                disabled={isExporting}
+                variant="primary" 
+                className="px-8 py-4 text-lg shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all flex items-center justify-center"
+              >
+                {isExporting ? (
+                  <>Downloading...</>
+                ) : (
+                  <><Download className="mr-2" size={24} /> Download PDF</>
+                )}
               </Button>
+              
+              <Button 
+                onClick={handlePrint} 
+                variant="outline" 
+                className="px-8 py-4 text-lg border-2 hover:bg-gray-50 flex items-center justify-center"
+              >
+                <Printer className="mr-2" size={24} /> Print / Save as PDF
+              </Button>
+            </div>
+
+            <div className="pt-4">
+               <button onClick={handleExportTXT} className="text-sm text-gray-500 hover:text-gray-800 underline flex items-center mx-auto">
+                 <FileText size={14} className="mr-1" /> Export as Plain Text (for ATS)
+               </button>
             </div>
           </div>
         );
@@ -648,15 +736,22 @@ const App = () => {
               </div>
               <span className="text-xl font-bold text-gray-900">ResumeAI</span>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
                <button 
                 onClick={() => setIsPreviewMode(!isPreviewMode)}
                 className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                >
                  {isPreviewMode ? <Edit3 size={20} /> : <Eye size={20} />}
                </button>
+               
+               <Button onClick={handleExportTXT} variant="ghost" className="hidden sm:flex text-xs">
+                 TXT
+               </Button>
                <Button onClick={handlePrint} variant="outline" icon={<Printer size={16} />} className="hidden sm:flex">
-                 Export
+                 Print
+               </Button>
+               <Button onClick={handleDownloadPDF} variant="primary" icon={<Download size={16} />} disabled={isExporting} className="hidden sm:flex">
+                 {isExporting ? '...' : 'Download'}
                </Button>
             </div>
           </div>
@@ -667,7 +762,7 @@ const App = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
           
           {/* Editor Column (Wizard) */}
-          <div className={`lg:col-span-5 flex flex-col h-full ${isPreviewMode ? 'hidden lg:flex' : 'flex'} no-print`}>
+          <div className={`lg:col-span-5 flex flex-col h-full wizard-col ${isPreviewMode ? 'hidden lg:flex' : 'flex'} no-print`}>
             <Steps />
             
             <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 flex-1 overflow-y-auto">
