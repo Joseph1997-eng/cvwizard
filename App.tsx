@@ -305,7 +305,16 @@ const App = () => {
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         try {
-            await html2pdf().set(opt).from(element).save();
+            await html2pdf().set(opt).from(element).toPdf().get('pdf').then((pdf: any) => {
+                const totalPages = pdf.internal.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                    pdf.setPage(i);
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(150);
+                    // Add page number at bottom right: Page X of Y
+                    pdf.text(`Page ${i} of ${totalPages}`, pdf.internal.pageSize.getWidth() - 25, pdf.internal.pageSize.getHeight() - 10);
+                }
+            }).save();
         } catch (e) {
             console.error("PDF Export failed", e);
             alert("Download failed. Falling back to print mode.");

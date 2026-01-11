@@ -34,7 +34,7 @@ export const Preview: React.FC<PreviewProps> = ({ data, scale = 1 }) => {
         backgroundColor: backgroundColor,
         transform: `scale(${scale})`,
         transformOrigin: 'top center',
-        padding: '12mm 15mm',
+        padding: '5mm 15mm', // Reduced top padding to 5mm
         fontFamily: `"${fontFamily}", sans-serif`,
       }}
       id="resume-preview"
@@ -48,7 +48,7 @@ export const Preview: React.FC<PreviewProps> = ({ data, scale = 1 }) => {
               min-height: 100vh !important;
               box-shadow: none !important;
               margin: 0 !important;
-              padding: 12mm 15mm !important;
+              padding: 5mm 15mm !important; /* Matches inline style */
               /* Force background colors to print */
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
